@@ -1,6 +1,9 @@
 import inspect
 
 from typing import Callable
+from collections import namedtuple
+
+executable = namedtuple('executable', ['op', 'args', 'kwargs'])
 
 
 class Exec:
@@ -15,18 +18,19 @@ class Exec:
             return
         self.exec_stack.append(self.op_stack[i])
         while len(self.exec_stack):
-            op = self.exec_stack.pop()
+            op, args, kwargs = self.exec_stack.pop()
             if inspect.isgeneratorfunction(op):
                 if len(self.result_stack):
-                    call = op(self.result_stack[-1])
+                    call = op(self.result_stack.pop())
                 else:
-                    call = op()
+                    call = op(*args, **kwargs)
                 for res in call:
                     self.result_stack.append(res)
                     self._next_func(i+1)
             else:
                 if len(self.result_stack):
-                    res = op(self.result_stack[-1])
+                    arg = self.result_stack.pop()
+                    res = op(arg)
                 else:
                     res = op()
                 self.result_stack.append(res)
@@ -38,20 +42,18 @@ class Exec:
 
 class ChainFunc:
 
-    def __init__(self, *args):
+    def __init__(self,):
         self.chain = []
-        self.exec: Exec = Exec([])
-        if isinstance(args[0], Callable):
-            self.next_fn(args[0])
 
-    def next_fn(self, func: Callable):
-        self.chain.append(func)
+    def next_fn(self, func: Callable, *args, **kwargs):
+        self.chain.append(executable(func, args, kwargs))
         return self
 
     def execute(self):
-        self.exec = Exec(self.chain)
-        self.exec.run()
-        self.exec = Exec([])
+        exec_ = Exec(self.chain)
+        exec_.run()
+        return exec_.result_stack
 
 
-next_fn = ChainFunc
+def next_fn(func: Callable, *args, **kwargs):
+    return ChainFunc().next_fn(func, *args, **kwargs)

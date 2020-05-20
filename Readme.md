@@ -47,3 +47,24 @@ chain.execute()
 Every next function will get result of previous as argument
 
 Use it with generators :)   
+
+## next_fn arguments 
+
+If the generator accepts arguments, such as the date range for the query in 
+MongoDB, you can pass all arguments as follows:
+
+```python
+def fetch_from_mongo(from_: datetime, to_: datetime):
+    # ... request to mongo ...
+    for document in result:
+        yield document
+
+def save_to_file(document: dict):
+    # ... save document to file ...
+
+to_ = datetime.utcnow()
+from_ = to_ - timedelta(days=1)
+chain = flatty.next_fn(fetch_from_mongo, from_, to_)
+```
+
+Very similar to using `functools.partial`
